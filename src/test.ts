@@ -1,43 +1,50 @@
-import { Defect, Executable } from "./lib/Executable";
+import { Executable } from "./lib/Executable";
 
-class SpecialError extends Error {
-  constructor(message?: string | undefined) {
-    super(message);
-  }
+// Define some errors with different constructors
+class UserNotFoundError extends Error {
+  constructor(public userId: string) { super(`User ${userId} not found.`); }
+}
+class PermissionDeniedError extends Error {
+  constructor(public operation: string) { super(`Permission denied for ${operation}.`); }
 }
 
-class SpecialError2 extends Error {
-  constructor(message: number) {
-    super(message.toString());
-  }
-}
-
-const mainErrors = {
-  SpecialError,
-  SpecialError2
+const errorRegistry = {
+  UserNotFoundError,
+  PermissionDeniedError,
 };
 
-const main = Executable.create(
-  async (a: number, b: number) => {
-    main.raise('SpecialError2', 42);
-    return a + b;
+// --- In your business logic ---
+const fetchUser = Executable.create(
+  async (id: string, scope: string) => {
+    if (id === 'bad-id') {
+      // `errorName` is inferred as "UserNotFoundError" | "PermissionDeniedError"
+      // `errorParameters` are correctly inferred for each different type of constructor
+      fetchUser.raise('UserNotFoundError', id);
+    }
+    if (scope !== 'admin') {
+      fetchUser.raise('PermissionDeniedError', 'fetchUser');
+    }
+    return { name: 'Alice', id };
   },
-  mainErrors
+  errorRegistry, // Pass the registry here
 );
 
+// --- At the call site ---
 (async () => {
-  const result = await main.execute(1, 2);
-  if (result.ok)
-    return console.log("Success:", result.result);
+  const result = await fetchUser.execute('bad-id', 'user');
 
-  if (result.error instanceof SpecialError)
-    return console.log("SpecialError:", result.error);
+  if (result.ok) {
+    // `result.result` is correctly typed as { name: string, id: string }
+    console.log(result.result.name);
+  } else {
+    // `result.error` is correctly typed as:
+    // UserNotFoundError | PermissionDeniedError | Defect
+    const error = result.error;
+    console.error(error.message);
 
-  if (result.error instanceof SpecialError2)
-    return console.log("SpecialError2:", result.error);
-
-  if (result.error instanceof Defect)
-    return console.log("Defect:", result.error);
-
-  return console.log("Unexpected error:", result.error);
+    // You can even narrow the error type
+    if (error instanceof UserNotFoundError) {
+      console.log(error.userId); // This is type-safe!
+    }
+  }
 })();
