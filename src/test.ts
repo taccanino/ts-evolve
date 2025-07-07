@@ -27,6 +27,16 @@ const fetchUser = Executable.create(
     return { name: 'Alice', id };
   },
   errorRegistry, // Pass the registry here
+  [
+    // Before middlewares can modify the input ('as const' is needed for type inference)
+    async (id, scope) => [id.trim(), scope.trim()] as const,
+  ],
+  [
+    // After middlewares can modify the output
+    async (result) => {
+      return { ...result, name: result.name.toUpperCase() };
+    },
+  ]
 );
 
 // --- At the call site ---
