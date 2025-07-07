@@ -12,15 +12,17 @@ class SpecialError2 extends Error {
   }
 }
 
+const mainErrors = {
+  SpecialError,
+  SpecialError2
+};
+
 const main = Executable.create(
   async (a: number, b: number) => {
-    main.raise('SpecialError2', 2);
+    main.raise('SpecialError2', 42);
     return a + b;
   },
-  {
-    SpecialError,
-    SpecialError2,
-  }
+  mainErrors
 );
 
 (async () => {
