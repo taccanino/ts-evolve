@@ -10,7 +10,7 @@ function fail<E extends {}>(error: E): Failure<E> {
   return { ok: false, error };
 }
 
-class Defect extends Error {
+export class Defect extends Error {
   public constructor(message?: string | undefined) {
     super(message);
     this.name = 'Defect';
@@ -30,12 +30,12 @@ export class Executable<Input extends any[], Output, ErrorRegistry extends Recor
     return new Executable(func, errors);
   }
 
-  public async execute(...args: Input): Promise<Result<Output, E | Defect>> {
+  public async execute(...args: Input): Promise<Result<Output, typeof this.errors[keyof typeof this.errors] | typeof Defect>> {
     try {
       const result = await this.func(...args);
       return succeed(result);
     } catch (error) {
-      return fail(error as E | Defect);
+      return fail(error as typeof this.errors[keyof typeof this.errors] | typeof Defect);
     }
   }
 

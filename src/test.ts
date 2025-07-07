@@ -1,4 +1,4 @@
-import { Executable } from "./lib/Executable";
+import { Defect, Executable } from "./lib/Executable";
 
 class SpecialError extends Error {
   constructor(message?: string | undefined) {
@@ -25,5 +25,17 @@ const main = Executable.create(
 
 (async () => {
   const result = await main.execute(1, 2);
-  console.log(result);
+  if (result.ok)
+    return console.log("Success:", result.result);
+
+  if (result.error instanceof SpecialError)
+    return console.log("SpecialError:", result.error);
+
+  if (result.error instanceof SpecialError2)
+    return console.log("SpecialError2:", result.error);
+
+  if (result.error instanceof Defect)
+    return console.log("Defect:", result.error);
+
+  return console.log("Unexpected error:", result.error);
 })();
