@@ -13,7 +13,7 @@ function fail<E>(error: E): Failure<E> {
 
 // --- Defect for unexpected errors ---
 export class Defect extends Error {
-  public constructor(message?: string | undefined) {
+  public constructor(message?: string | undefined, public inner?: Error | undefined) {
     super(message);
     this.name = 'Defect';
   }
@@ -108,7 +108,9 @@ export class Executable<
       // This case should not happen if using TypeScript correctly.
       throw new Defect(`Error "${String(errorName)}" is not registered.`);
     }
-    const ErrorConstructor = this.errors[errorName];
-    throw new ErrorConstructor(...errorParameters);
+    const errorConstructor = this.errors[errorName];
+    const errorInstance = new errorConstructor(...errorParameters);
+    errorInstance.name = errorName as string; // Set the name for better debugging
+    throw errorInstance; // Throw the error instance
   }
 }
