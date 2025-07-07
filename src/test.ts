@@ -21,6 +21,9 @@ const main = Executable.create(
     SpecialError,
     SpecialError2,
   }
-)
+);
 
-main.execute(1, 2).then(data => { console.log(data) });
+(async () => {
+  const result = await main.execute(1, 2);
+  console.log(result);
+})();
