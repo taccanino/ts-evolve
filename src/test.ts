@@ -13,9 +13,28 @@ const errorRegistry = {
   PermissionDeniedError,
 };
 
+abstract class ILogger {
+  abstract log(message: string): void;
+}
+
+class ConsoleLogger extends ILogger {
+  log(message: string): void {
+    console.log(message);
+  }
+}
+
+// Define a dependency registry
+const dependencyRegistry = {
+  ILogger: new ConsoleLogger(),
+};
+
 // --- In your business logic ---
 const fetchUser = Executable.create(
   async (id: string, scope: string) => {
+    const logger = fetchUser.get("ILogger");
+
+    logger.log("Example log");
+
     if (id === 'bad-id') {
       // `errorName` is inferred as "UserNotFoundError" | "PermissionDeniedError"
       // `errorParameters` are correctly inferred for each different type of constructor
@@ -26,10 +45,11 @@ const fetchUser = Executable.create(
     }
     return { name: 'Alice', id };
   },
-  errorRegistry, // Pass the registry here
+  errorRegistry,
+  dependencyRegistry,
   [
-    // Before middlewares can modify the input ('as const' is needed for type inference)
-    async (id, scope) => [id.trim(), scope.trim()] as const,
+    // Before middlewares can modify the input
+    async (id, scope) => [id.trim(), scope.trim()],
   ],
   [
     // After middlewares can modify the output
@@ -39,7 +59,6 @@ const fetchUser = Executable.create(
   ]
 );
 
-// --- At the call site ---
 (async () => {
   const result = await fetchUser.execute('bad-id', 'user');
 

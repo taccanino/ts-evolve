@@ -1,4 +1,3 @@
-// --- Core Result Type ---
 type Success<R> = { ok: true; result: R };
 type Failure<E> = { ok: false; error: E };
 export type Result<R, E> = Success<R> | Failure<E>;
@@ -19,7 +18,6 @@ export class Defect extends Error {
   }
 }
 
-// --- A helper type to extract the instance types from a registry of constructors ---
 /**
  * Infers a union of error instance types from a record of error constructors.
  * e.g., for { A: typeof ErrorA, B: typeof ErrorB }, it produces ErrorA | ErrorB.
@@ -31,39 +29,44 @@ type RegisteredErrors<TErrorRegistry extends Record<string, new (...args: any[])
   // Otherwise, get the instance type of each constructor in the registry.
   : InstanceType<TErrorRegistry[keyof TErrorRegistry]>;
 
-/**
- * A type-safe wrapper for an asynchronous function that can throw specific, registered errors.
- * @template Input The tuple type for the arguments of the wrapped function.
- * @template Output The success type of the wrapped function's promise.
- * @template TErrorRegistry A record mapping string keys to error constructors (e.g., `{ MyError: MyErrorClass }`).
- */
+/** * The Executable class wraps a function and provides a structured way to handle errors, dependencies, and
+  * middlewares. It allows you to define a function that can raise specific errors and access dependencies in a type-safe manner.
+  * It also supports before and after middlewares for input and output transformations.
+  */
 export class Executable<
-  Input extends any[],
+  const Input extends any[],
   Output,
-  TErrorRegistry extends Record<string, new (...args: any[]) => Error>
+  const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
+  const TDepRegistry extends Record<string, object>
 > {
   private constructor(
-    private readonly func: (...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
+    private readonly func: (this: Executable<Input, Output, TErrorRegistry, TDepRegistry>, ...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
     private readonly errors: TErrorRegistry,
+    private readonly dependencies: TDepRegistry,
     private readonly beforeMiddlewares: ((...args: Input) => Promise<Input>)[],
     private readonly afterMiddlewares: ((result: Output) => Promise<Output>)[],
   ) { }
-
   /**
-   * Creates an Executable with a registry of possible errors.
-   * Type inference will automatically capture the types from the provided error registry.
+   * Creates a new Executable instance.
+   * @param func The function to wrap.
+   * @param errors A record of error constructors that can be raised by the wrapped function.
+   * @param dependencies A record of dependencies that can be injected into the wrapped function.
+   * @param beforeMiddlewares An array of middlewares to apply before the function execution.
+   * @param afterMiddlewares An array of middlewares to apply after the function execution.
    */
   public static create<
-    Input extends any[],
+    const Input extends any[],
     Output,
-    const TErrorRegistry extends Record<string, new (...args: any[]) => Error>
+    const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
+    const TDepRegistry extends Record<string, object>
   >(
-    func: (...args: Input) => Promise<Output>,
+    func: (this: Executable<Input, Output, TErrorRegistry, TDepRegistry>, ...args: Input) => Promise<Output>,
     errors?: TErrorRegistry,
+    dependencies?: TDepRegistry,
     beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
     afterMiddlewares?: ((result: Output) => Promise<Output>)[]
-  ): Executable<Input, Output, TErrorRegistry> {
-    return new Executable(func, errors ?? ({} as TErrorRegistry), beforeMiddlewares ?? [], afterMiddlewares ?? []);
+  ): Executable<Input, Output, TErrorRegistry, TDepRegistry> {
+    return new Executable(func, errors ?? ({} as TErrorRegistry), dependencies ?? ({} as TDepRegistry), beforeMiddlewares ?? [], afterMiddlewares ?? []);
   }
 
   /**
@@ -112,5 +115,19 @@ export class Executable<
     const errorInstance = new errorConstructor(...errorParameters);
     errorInstance.name = errorName as string; // Set the name for better debugging
     throw errorInstance; // Throw the error instance
+  }
+
+  /**
+   * Retrieves a dependency instance from the registry. This should be used inside the wrapped function.
+   * It is typesafe and will return the specific type of the dependency instance.
+   * @param dependencyName The key of the dependency in the registry.
+   */
+  public get<T extends keyof TDepRegistry>(dependencyName: T): TDepRegistry[T] {
+    const dependencyInstance = this.dependencies[dependencyName];
+    if (dependencyInstance === undefined) {
+      // This is a programming error (a defect), as the type system should prevent this.
+      throw new Defect(`Dependency "${String(dependencyName)}" is not registered.`);
+    }
+    return dependencyInstance;
   }
 }
