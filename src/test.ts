@@ -39,7 +39,7 @@ const dependencyRegistry = {
 };
 
 const fetchUser = Executable.createFunctional(
-  async (id: string, scope: string) => {
+  async (args: { id: string, scope: string }) => {
     const logger = fetchUser.get("ILogger");
 
     const dogConstructor = fetchUser.get("ISerializable");
@@ -47,24 +47,24 @@ const fetchUser = Executable.createFunctional(
 
     logger.log(dog.serialize());
 
-    if (id === 'bad-id')
-      fetchUser.raise('UserNotFoundError', id);
+    if (args.id === 'bad-id')
+      fetchUser.raise('UserNotFoundError', args.id);
 
-    if (scope !== 'admin')
+    if (args.scope !== 'admin')
       fetchUser.raise('PermissionDeniedError', 'fetchUser');
 
-    return { name: 'Alice', id };
+    return { name: 'Alice', id: args.id };
   },
   {
     errors: errorRegistry,
     dependencies: dependencyRegistry,
-    beforeMiddlewares: [async (id, scope) => [id.trim(), scope.trim()]],
+    beforeMiddlewares: [async (args) => [args]],
     afterMiddlewares: [async (result) => ({ ...result, name: result.name.toUpperCase() })]
   }
 );
 
 (async () => {
-  const result = await fetchUser('bad-id', 'user');
+  const result = await fetchUser({ id: 'bad-id', scope: 'user' });
 
   if (result.ok)
     console.log(result.result.name);
