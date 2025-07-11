@@ -41,7 +41,7 @@ const dependencyRegistry = {
 };
 
 // --- In your business logic ---
-const fetchUser = Executable.create(
+const fetchUser = Executable.createFunctional(
   async (id: string, scope: string) => {
     const logger = fetchUser.get("ILogger");
 
@@ -77,7 +77,7 @@ const fetchUser = Executable.create(
 );
 
 (async () => {
-  const result = await fetchUser.execute('bad-id', 'user');
+  const result = await fetchUser('bad-id', 'user');
 
   if (result.ok) {
     // `result.result` is correctly typed as { name: string, id: string }
