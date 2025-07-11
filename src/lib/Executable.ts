@@ -40,17 +40,35 @@ export class Executable<
   const TDepRegistry extends Record<string, object>
 > {
   private constructor(
-    private readonly func: (...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
+    private readonly funcFactory: (context: {
+      raise: <T extends keyof TErrorRegistry>(
+        errorName: T,
+        ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+      ) => never,
+      get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+    }) => (...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
     private readonly options: {
       errors: TErrorRegistry,
       dependencies: TDepRegistry,
-      beforeMiddlewares: ((...args: Input) => Promise<Input>)[],
-      afterMiddlewares: ((result: Output) => Promise<Output>)[],
+      beforeMiddlewares: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((...args: Input) => Promise<Input>)[]),
+      afterMiddlewares: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((result: Output) => Promise<Output>)[]),
     }
   ) { }
   /**
    * Creates a new Executable instance.
-   * @param func The function to wrap.
+   * @param funcFactory The function to wrap.
    * @param errors A record of error constructors that can be raised by the wrapped function.
    * @param dependencies A record of dependencies that can be injected into the wrapped function.
    * @param beforeMiddlewares An array of middlewares to apply before the function execution.
@@ -62,26 +80,44 @@ export class Executable<
     const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
     const TDepRegistry extends Record<string, object>
   >(
-    func: (...args: Input) => Promise<Output>,
+    funcFactory: (context: {
+      raise: <T extends keyof TErrorRegistry>(
+        errorName: T,
+        ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+      ) => never,
+      get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+    }) => (...args: Input) => Promise<Output>,
     options?: {
       errors?: TErrorRegistry,
       dependencies?: TDepRegistry,
-      beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
-      afterMiddlewares?: ((result: Output) => Promise<Output>)[]
+      beforeMiddlewares?: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((...args: Input) => Promise<Input>)[]),
+      afterMiddlewares?: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((result: Output) => Promise<Output>)[])
     }
-  ): Executable<Input, Output, TErrorRegistry, TDepRegistry> {
+  ) {
     const realOptions = {
       errors: options?.errors ?? {} as TErrorRegistry,
       dependencies: options?.dependencies ?? {} as TDepRegistry,
-      beforeMiddlewares: options?.beforeMiddlewares ?? [] as ((...args: Input) => Promise<Input>)[],
-      afterMiddlewares: options?.afterMiddlewares ?? [] as ((result: Output) => Promise<Output>)[]
+      beforeMiddlewares: options?.beforeMiddlewares ?? (() => ([])),
+      afterMiddlewares: options?.afterMiddlewares ?? (() => ([]))
     };
-    return new Executable(func, realOptions);
+    return new Executable(funcFactory, realOptions);
   }
 
   /**
    * Creates a new Executable functional instance.
-   * @param func The function to wrap.
+   * @param funcFactory The function to wrap.
    * @param errors A record of error constructors that can be raised by the wrapped function.
    * @param dependencies A record of dependencies that can be injected into the wrapped function.
    * @param beforeMiddlewares An array of middlewares to apply before the function execution.
@@ -93,34 +129,41 @@ export class Executable<
     const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
     const TDepRegistry extends Record<string, object>
   >(
-    func: (...args: Input) => Promise<Output>,
+    funcFactory: (context: {
+      raise: <T extends keyof TErrorRegistry>(
+        errorName: T,
+        ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+      ) => never,
+      get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+    }) => (...args: Input) => Promise<Output>,
     options?: {
       errors?: TErrorRegistry,
       dependencies?: TDepRegistry,
-      beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
-      afterMiddlewares?: ((result: Output) => Promise<Output>)[]
+      beforeMiddlewares?: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((...args: Input) => Promise<Input>)[]),
+      afterMiddlewares?: (context: {
+        raise: <T extends keyof TErrorRegistry>(
+          errorName: T,
+          ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+        ) => never,
+        get: <T extends keyof TDepRegistry> (dependencyName: T) => TDepRegistry[T]
+      }) => (((result: Output) => Promise<Output>)[])
     }
-  ): Executable<Input, Output, TErrorRegistry, TDepRegistry>["execute"] & {
-    raise: <T extends keyof TErrorRegistry>(
-      errorName: T,
-      ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
-    ) => never
-    get: <T extends keyof TDepRegistry>(dependencyName: T) => TDepRegistry[T]
-  } {
+  ): Executable<Input, Output, TErrorRegistry, TDepRegistry>["execute"] {
     const realOptions = {
       errors: options?.errors ?? {} as TErrorRegistry,
       dependencies: options?.dependencies ?? {} as TDepRegistry,
-      beforeMiddlewares: options?.beforeMiddlewares ?? [] as ((...args: Input) => Promise<Input>)[],
-      afterMiddlewares: options?.afterMiddlewares ?? [] as ((result: Output) => Promise<Output>)[]
+      beforeMiddlewares: options?.beforeMiddlewares ?? (() => ([])),
+      afterMiddlewares: options?.afterMiddlewares ?? (() => ([]))
     };
-    const executable = new Executable(func, realOptions);
-    let execute = executable.execute.bind(executable) as any;
-    execute.raise = executable.raise.bind(executable);
-    execute.get = executable.get.bind(executable);
-    return execute as typeof execute & {
-      raise: typeof executable.raise
-      get: typeof executable.get
-    };
+    const executable = new Executable(funcFactory, realOptions);
+    let execute = executable.execute.bind(executable);
+    return execute;
   }
 
   /**
@@ -129,18 +172,19 @@ export class Executable<
    * This method handles both success and failure cases, applying middlewares as needed.
    */
   public async execute(...args: Input): Promise<Result<Output, RegisteredErrors<TErrorRegistry> | Defect>> {
+    const context = ({ raise: this.raise.bind(this), get: this.get.bind(this) });
     try {
       // Apply before middlewares if any
       if (this.options.beforeMiddlewares)
-        for (const middleware of this.options.beforeMiddlewares)
+        for (const middleware of this.options.beforeMiddlewares(context))
           args = await middleware(...args);
 
       // Call the wrapped function
-      let result = await this.func(...args);
+      let result = await this.funcFactory(context)(...args);
 
       // Apply after middlewares if any
       if (this.options.afterMiddlewares)
-        for (const middleware of this.options.afterMiddlewares)
+        for (const middleware of this.options.afterMiddlewares(context))
           result = await middleware(result);
 
       return succeed(result);
@@ -156,7 +200,7 @@ export class Executable<
    * @param errorName The key of the error in the registry.
    * @param errorParameters The parameters for the error's constructor.
    */
-  public raise<T extends keyof TErrorRegistry>(
+  private raise<T extends keyof TErrorRegistry>(
     errorName: T,
     ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
   ): never {
@@ -176,7 +220,7 @@ export class Executable<
    * It is typesafe and will return the specific type of the dependency instance.
    * @param dependencyName The key of the dependency in the registry.
    */
-  public get<T extends keyof TDepRegistry>(dependencyName: T): TDepRegistry[T] {
+  private get<T extends keyof TDepRegistry>(dependencyName: T): TDepRegistry[T] {
     const dependencyInstance = this.options.dependencies[dependencyName];
     if (dependencyInstance === undefined) {
       // This is a programming error (a defect), as the type system should prevent this.

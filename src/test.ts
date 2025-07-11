@@ -39,27 +39,27 @@ const dependencyRegistry = {
 };
 
 const fetchUser = Executable.createFunctional(
-  async (args: { id: string, scope: string }) => {
-    const logger = fetchUser.get("ILogger");
+  ({ raise, get }) => async (args: { id: string, scope: string }) => {
+    const logger = get("ILogger");
 
-    const dogConstructor = fetchUser.get("ISerializable");
+    const dogConstructor = get("ISerializable");
     const dog = new dogConstructor('Fido');
 
     logger.log(dog.serialize());
 
     if (args.id === 'bad-id')
-      fetchUser.raise('UserNotFoundError', args.id);
+      raise('UserNotFoundError', args.id);
 
     if (args.scope !== 'admin')
-      fetchUser.raise('PermissionDeniedError', 'fetchUser');
+      raise('PermissionDeniedError', 'fetchUser');
 
     return { name: 'Alice', id: args.id };
   },
   {
+    beforeMiddlewares: (/*{ raise, get }*/) => [async (args) => [args]],
+    afterMiddlewares: (/*{ raise, get }*/) => [async (result) => ({ ...result, name: result.name.toUpperCase() })],
     errors: errorRegistry,
     dependencies: dependencyRegistry,
-    beforeMiddlewares: [async (args) => [args]],
-    afterMiddlewares: [async (result) => ({ ...result, name: result.name.toUpperCase() })]
   }
 );
 
