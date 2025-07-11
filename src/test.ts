@@ -23,9 +23,21 @@ class ConsoleLogger extends ILogger {
   }
 }
 
+abstract class ISerializable {
+  abstract serialize(): string;
+}
+
+class Dog extends ISerializable {
+  constructor(public name: string) { super(); }
+  serialize(): string {
+    return JSON.stringify({ type: 'Dog', name: this.name });
+  }
+}
+
 // Define a dependency registry
 const dependencyRegistry = {
   ILogger: new ConsoleLogger(),
+  ISerializable: Dog,
 };
 
 // --- In your business logic ---
@@ -33,7 +45,10 @@ const fetchUser = Executable.create(
   async (id: string, scope: string) => {
     const logger = fetchUser.get("ILogger");
 
-    logger.log("Example log");
+    const dogConstructor = fetchUser.get("ISerializable");
+    const dog = new dogConstructor('Fido');
+
+    logger.log(dog.serialize());
 
     if (id === 'bad-id') {
       // `errorName` is inferred as "UserNotFoundError" | "PermissionDeniedError"
@@ -45,18 +60,20 @@ const fetchUser = Executable.create(
     }
     return { name: 'Alice', id };
   },
-  errorRegistry,
-  dependencyRegistry,
-  [
-    // Before middlewares can modify the input
-    async (id, scope) => [id.trim(), scope.trim()],
-  ],
-  [
-    // After middlewares can modify the output
-    async (result) => {
-      return { ...result, name: result.name.toUpperCase() };
-    },
-  ]
+  {
+    errors: errorRegistry,
+    dependencies: dependencyRegistry,
+    beforeMiddlewares: [
+      // Before middlewares can modify the input
+      async (id, scope) => [id.trim(), scope.trim()],
+    ],
+    afterMiddlewares: [
+      // After middlewares can modify the output
+      async (result) => {
+        return { ...result, name: result.name.toUpperCase() };
+      },
+    ]
+  }
 );
 
 (async () => {

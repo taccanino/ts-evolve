@@ -40,11 +40,13 @@ export class Executable<
   const TDepRegistry extends Record<string, object>
 > {
   private constructor(
-    private readonly func: (this: Executable<Input, Output, TErrorRegistry, TDepRegistry>, ...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
-    private readonly errors: TErrorRegistry,
-    private readonly dependencies: TDepRegistry,
-    private readonly beforeMiddlewares: ((...args: Input) => Promise<Input>)[],
-    private readonly afterMiddlewares: ((result: Output) => Promise<Output>)[],
+    private readonly func: (...args: Input) => Promise<Output>, // `| never` is redundant with `Promise`
+    private readonly options: {
+      errors: TErrorRegistry,
+      dependencies: TDepRegistry,
+      beforeMiddlewares: ((...args: Input) => Promise<Input>)[],
+      afterMiddlewares: ((result: Output) => Promise<Output>)[],
+    }
   ) { }
   /**
    * Creates a new Executable instance.
@@ -60,13 +62,21 @@ export class Executable<
     const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
     const TDepRegistry extends Record<string, object>
   >(
-    func: (this: Executable<Input, Output, TErrorRegistry, TDepRegistry>, ...args: Input) => Promise<Output>,
-    errors?: TErrorRegistry,
-    dependencies?: TDepRegistry,
-    beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
-    afterMiddlewares?: ((result: Output) => Promise<Output>)[]
+    func: (...args: Input) => Promise<Output>,
+    options?: {
+      errors?: TErrorRegistry,
+      dependencies?: TDepRegistry,
+      beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
+      afterMiddlewares?: ((result: Output) => Promise<Output>)[]
+    }
   ): Executable<Input, Output, TErrorRegistry, TDepRegistry> {
-    return new Executable(func, errors ?? ({} as TErrorRegistry), dependencies ?? ({} as TDepRegistry), beforeMiddlewares ?? [], afterMiddlewares ?? []);
+    const realOptions = {
+      errors: options?.errors ?? {} as TErrorRegistry,
+      dependencies: options?.dependencies ?? {} as TDepRegistry,
+      beforeMiddlewares: options?.beforeMiddlewares ?? [] as ((...args: Input) => Promise<Input>)[],
+      afterMiddlewares: options?.afterMiddlewares ?? [] as ((result: Output) => Promise<Output>)[]
+    };
+    return new Executable(func, realOptions);
   }
 
   /**
@@ -77,16 +87,16 @@ export class Executable<
   public async execute(...args: Input): Promise<Result<Output, RegisteredErrors<TErrorRegistry> | Defect>> {
     try {
       // Apply before middlewares if any
-      if (this.beforeMiddlewares)
-        for (const middleware of this.beforeMiddlewares)
+      if (this.options.beforeMiddlewares)
+        for (const middleware of this.options.beforeMiddlewares)
           args = await middleware(...args);
 
       // Call the wrapped function
       let result = await this.func(...args);
 
       // Apply after middlewares if any
-      if (this.afterMiddlewares)
-        for (const middleware of this.afterMiddlewares)
+      if (this.options.afterMiddlewares)
+        for (const middleware of this.options.afterMiddlewares)
           result = await middleware(result);
 
       return succeed(result);
@@ -107,11 +117,11 @@ export class Executable<
     ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
   ): never {
     // The runtime check is still good practice.
-    if (!(errorName in this.errors)) {
+    if (!(errorName in this.options.errors)) {
       // This case should not happen if using TypeScript correctly.
       throw new Defect(`Error "${String(errorName)}" is not registered.`);
     }
-    const errorConstructor = this.errors[errorName];
+    const errorConstructor = this.options.errors[errorName];
     const errorInstance = new errorConstructor(...errorParameters);
     errorInstance.name = errorName as string; // Set the name for better debugging
     throw errorInstance; // Throw the error instance
@@ -123,7 +133,7 @@ export class Executable<
    * @param dependencyName The key of the dependency in the registry.
    */
   public get<T extends keyof TDepRegistry>(dependencyName: T): TDepRegistry[T] {
-    const dependencyInstance = this.dependencies[dependencyName];
+    const dependencyInstance = this.options.dependencies[dependencyName];
     if (dependencyInstance === undefined) {
       // This is a programming error (a defect), as the type system should prevent this.
       throw new Defect(`Dependency "${String(dependencyName)}" is not registered.`);
