@@ -80,6 +80,50 @@ export class Executable<
   }
 
   /**
+   * Creates a new Executable functional instance.
+   * @param func The function to wrap.
+   * @param errors A record of error constructors that can be raised by the wrapped function.
+   * @param dependencies A record of dependencies that can be injected into the wrapped function.
+   * @param beforeMiddlewares An array of middlewares to apply before the function execution.
+   * @param afterMiddlewares An array of middlewares to apply after the function execution.
+   */
+  public static createFunctional<
+    const Input extends any[],
+    Output,
+    const TErrorRegistry extends Record<string, new (...args: any[]) => Error>,
+    const TDepRegistry extends Record<string, object>
+  >(
+    func: (...args: Input) => Promise<Output>,
+    options?: {
+      errors?: TErrorRegistry,
+      dependencies?: TDepRegistry,
+      beforeMiddlewares?: ((...args: Input) => Promise<Input>)[],
+      afterMiddlewares?: ((result: Output) => Promise<Output>)[]
+    }
+  ): Executable<Input, Output, TErrorRegistry, TDepRegistry>["execute"] & {
+    raise: <T extends keyof TErrorRegistry>(
+      errorName: T,
+      ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+    ) => never
+    get: <T extends keyof TDepRegistry>(dependencyName: T) => TDepRegistry[T]
+  } {
+    const realOptions = {
+      errors: options?.errors ?? {} as TErrorRegistry,
+      dependencies: options?.dependencies ?? {} as TDepRegistry,
+      beforeMiddlewares: options?.beforeMiddlewares ?? [] as ((...args: Input) => Promise<Input>)[],
+      afterMiddlewares: options?.afterMiddlewares ?? [] as ((result: Output) => Promise<Output>)[]
+    };
+    const executable = new Executable(func, realOptions);
+    let execute = executable.execute.bind(executable) as any;
+    execute.raise = executable.raise.bind(executable);
+    execute.get = executable.get.bind(executable);
+    return execute as typeof execute & {
+      raise: typeof executable.raise
+      get: typeof executable.get
+    };
+  }
+
+  /**
    * Executes the wrapped function and returns a Result object.
    * The error type in the Result is a union of all registered error instances and the `Defect` type.
    * This method handles both success and failure cases, applying middlewares as needed.
