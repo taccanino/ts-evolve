@@ -18,16 +18,16 @@ export class Defect extends Error {
 }
 
 /** A record of error constructors. */
-type ErrorRegistry = Record<string, new (...args: any[]) => Error>;
+type ErrorRegistry = undefined | Record<string, new (...args: any[]) => Error>;
 
 /** A record of dependency instances. */
-type DependencyRegistry = Record<string, object>;
+type DependencyRegistry = undefined | Record<string, object>;
 
 /** Infers a union of error instance types from a record of error constructors. */
 type RegisteredErrors<TErrorRegistry extends ErrorRegistry> =
-  keyof TErrorRegistry extends never
+  TErrorRegistry extends undefined
   ? never
-  : InstanceType<TErrorRegistry[keyof TErrorRegistry]>;
+  : InstanceType<Exclude<TErrorRegistry, undefined>[keyof TErrorRegistry]>;
 
 /** The context object provided to the main function and middlewares. */
 export type ExecutionContext<
@@ -36,7 +36,7 @@ export type ExecutionContext<
 > = {
   raise: <T extends keyof TErrorRegistry>(
     errorName: T,
-    ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+    ...errorParameters: ConstructorParameters<Exclude<TErrorRegistry, undefined>[T]>
   ) => never;
   get: <T extends keyof TDepRegistry>(dependencyName: T) => TDepRegistry[T];
 };
@@ -97,8 +97,8 @@ export class Executable<
     this.funcFactory = funcFactory;
     // Centralize the handling of default options
     this.options = {
-      errors: options?.errors ?? ({} as TErrorRegistry),
-      dependencies: options?.dependencies ?? ({} as TDepRegistry),
+      errors: options?.errors as TErrorRegistry,
+      dependencies: options?.dependencies as TDepRegistry,
       beforeMiddlewares: options?.beforeMiddlewares ?? (() => []),
       afterMiddlewares: options?.afterMiddlewares ?? (() => []),
     };
@@ -157,19 +157,21 @@ export class Executable<
 
   private raise<T extends keyof TErrorRegistry>(
     errorName: T,
-    ...errorParameters: ConstructorParameters<TErrorRegistry[T]>
+    ...errorParameters: ConstructorParameters<Exclude<TErrorRegistry, undefined>[T]>
   ): never {
-    if (!(errorName in this.options.errors))
+    if (!this.options.errors || !(errorName in this.options.errors))
       throw new Defect(`Error "${String(errorName)}" is not registered.`);
 
-    const errorConstructor = this.options.errors[errorName];
+    const errorConstructor = (this.options.errors as Exclude<TErrorRegistry, undefined>)[errorName];
     const errorInstance = new errorConstructor(...errorParameters);
     errorInstance.name = errorName as string;
     throw errorInstance;
   }
 
   private get<T extends keyof TDepRegistry>(dependencyName: T): TDepRegistry[T] {
-    const dependencyInstance = this.options.dependencies[dependencyName];
+    if (!this.options.dependencies)
+      throw new Defect(`Dependency "${String(dependencyName)}" is not registered.`);
+    const dependencyInstance = (this.options.dependencies as Exclude<TDepRegistry, undefined>)[dependencyName];
     if (dependencyInstance === undefined)
       throw new Defect(`Dependency "${String(dependencyName)}" is not registered.`);
 
