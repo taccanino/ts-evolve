@@ -1,3 +1,22 @@
+# ts-evolve
+
+![npm version](https://img.shields.io/npm/v/ts-evolve)
+![build status](https://img.shields.io/github/actions/workflow/status/your-username/ts-evolve/your-workflow-file.yml)
+![license](https://img.shields.io/npm/l/ts-evolve)
+
+A simple typescript library for building robust, observable functionos with a focus on typesafe error handling and dependency injection.
+
+## Installation
+
+Install the package using npm:
+
+```bash
+npm install ts-evolve
+```
+
+## Example usage
+
+```typescript
 import { Executable } from "./lib/Executable";
 
 class UserNotFoundError extends Error {
@@ -76,3 +95,15 @@ const fetchUser = Executable.createFunctional(
       console.log(error.userId);
   }
 })();
+```
+
+## API
+
+Import the Executable class and create the executable with the `create` or `createFunctional` static methods.
+The only difference with the two methods is the way you will call the executable.
+
+With `create` you will obtain the reference to the newly created Executable object, so to execute it you must call `await executable.execute(...)`.
+
+With `createFunctional` you will instead obtain the direct reference to the execute function, so to execute it you just call it `await executable(...)`.
+
+The result of the execution is always a `Promise` that resolves to a `Result` object like `{ ok: true, result: ... } | { ok: false, error: ... }`.

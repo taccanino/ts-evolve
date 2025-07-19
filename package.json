@@ -1,16 +1,23 @@
 {
   "name": "ts-evolve",
   "version": "1.0.0",
-  "main": "test.js",
   "scripts": {
-    "build": "tsc",
-    "test": "node dist/test.js"
+    "build": "tsc"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Pietro Brega <pietro.brega@gmail.com>",
+  "license": "MIT",
   "type": "commonjs",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taccanino/ts-evolve.git"
+  },
+  "keywords": [
+    "typescript",
+    "metaprogramming",
+    "observability",
+    "error handling"
+  ],
   "dependencies": {
     "typescript": "^5.8.3"
   }

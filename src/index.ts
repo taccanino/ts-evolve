@@ -1,6 +1,6 @@
 type Success<R> = { ok: true; result: R };
 type Failure<E> = { ok: false; error: E };
-export type Result<R, E> = Success<R> | Failure<E>;
+type Result<R, E> = Success<R> | Failure<E>;
 
 function succeed<R>(result: R): Success<R> {
   return { ok: true, result };
@@ -30,7 +30,7 @@ type RegisteredErrors<TErrorRegistry extends ErrorRegistry> =
   : InstanceType<Exclude<TErrorRegistry, undefined>[keyof TErrorRegistry]>;
 
 /** The context object provided to the main function and middlewares. */
-export type ExecutionContext<
+type ExecutionContext<
   TErrorRegistry extends ErrorRegistry,
   TDepRegistry extends DependencyRegistry
 > = {
@@ -69,7 +69,7 @@ type AfterMiddlewareFactory<
 > = (context: ExecutionContext<TErrorRegistry, TDepRegistry>) => AfterMiddleware<Output>[];
 
 /** Configuration options for creating an Executable. */
-export type ExecutableOptions<
+type ExecutableOptions<
   Input extends any[],
   Output,
   TErrorRegistry extends ErrorRegistry,
