@@ -4,7 +4,7 @@
 ![build status](https://img.shields.io/github/actions/workflow/status/your-username/ts-evolve/your-workflow-file.yml)
 ![license](https://img.shields.io/npm/l/ts-evolve)
 
-A simple typescript library for building robust, observable functionos with a focus on typesafe error handling and dependency injection.
+A simple typescript library for building robust, observable functions with a focus on typesafe error handling and dependency injection.
 
 ## Installation
 
@@ -17,7 +17,7 @@ npm install ts-evolve
 ## Example usage
 
 ```typescript
-import { Executable } from "./lib/Executable";
+import { Executable } from "ts-evolve";
 
 class UserNotFoundError extends Error {
   constructor(public userId: string) { super(`User ${userId} not found.`); }
@@ -107,3 +107,6 @@ With `create` you will obtain the reference to the newly created Executable obje
 With `createFunctional` you will instead obtain the direct reference to the execute function, so to execute it you just call it `await executable(...)`.
 
 The result of the execution is always a `Promise` that resolves to a `Result` object like `{ ok: true, result: ... } | { ok: false, error: ... }`.
+
+When inside the executable function you must use the provided function `raise` to throw errors in a typesafe way.
+Similarly you can use the provided function `get` to extract the injected dependencies in a typesafe way.
