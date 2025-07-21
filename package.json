@@ -1,6 +1,6 @@
 {
   "name": "ts-evolve",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "build": "tsc"
   },
@@ -17,6 +17,11 @@
     "metaprogramming",
     "observability",
     "error handling"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "dependencies": {
     "typescript": "^5.8.3"
