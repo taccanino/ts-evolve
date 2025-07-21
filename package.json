@@ -1,8 +1,9 @@
 {
   "name": "ts-evolve",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
   },
   "author": "Pietro Brega <pietro.brega@gmail.com>",
   "license": "MIT",
@@ -18,12 +19,18 @@
     "observability",
     "error handling"
   ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.js",
   "files": [
     "dist",
     "LICENSE",
     "README.md"
   ],
-  "dependencies": {
+  "devDependencies": {
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "ts-evolve": "file:"
   }
 }
